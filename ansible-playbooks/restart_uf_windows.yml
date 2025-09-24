@@ -1,0 +1,48 @@
+---
+- name: Restart Splunk Universal Forwarder on Windows
+  hosts: all
+  gather_facts: yes
+
+  vars:
+    splunk_home: "C:\\Program Files\\SplunkUniversalForwarder"
+    splunk_service_name: "SplunkForwarder"
+    max_retries: 5
+    retry_delay: 5
+
+  pre_tasks:
+    - name: Validate target host information
+      win_fail:
+        msg: "Missing required variables: target_host, target_ip, os_type"
+      when:
+        - target_host is not defined
+        - target_ip is not defined
+
+    - name: Log task start
+      win_debug:
+        msg: "Starting UF restart task for {{ target_host }} ({{ target_ip }}) - OS: {{ os_type }}"
+
+  tasks:
+    - name: Restart Splunk service
+      win_service:
+        name: "{{ splunk_service_name }}"
+        state: restarted
+      register: restart_result
+      retries: "{{ max_retries }}"
+      delay: "{{ retry_delay }}"
+
+    - name: Log successful restart
+      win_debug:
+        msg: "Successfully restarted Splunk Universal Forwarder on {{ inventory_hostname }}"
+
+  post_tasks:
+    - name: Clean up temporary files
+      win_file:
+        path: "{{ item }}"
+        state: absent
+      loop:
+        - "C:\\temp\\splunk_restart_*.log"
+      failed_when: false
+
+    - name: Log task completion
+      win_debug:
+        msg: "UF restart task completed for {{ target_host }}"

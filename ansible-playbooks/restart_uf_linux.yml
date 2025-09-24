@@ -1,0 +1,167 @@
+---
+- name: Restart Splunk Universal Forwarder on Linux
+  hosts: all
+  become: yes
+  become_user: ansible
+  gather_facts: yes
+
+  vars:
+    splunk_home: "/opt/splunkforwarder"
+    splunk_user: "splunkfwd"
+    splunk_service_name: "SplunkForwarder"
+    max_retries: 3
+    retry_delay: 5
+
+  pre_tasks:
+    - name: Set log file name
+      set_fact:
+        log_file: "/home/ansible/server-logs/ansible/splunk_uf_restart_{{ target_ip }}_{{ ansible_date_time.iso8601_basic_short }}.log"
+      delegate_to: localhost
+
+    - name: Validate target host information
+      fail:
+        msg: "Missing required variables: target_ip"
+      when:
+        - target_ip is not defined
+
+    - name: Log task start with correlation ID
+      lineinfile:
+        path: "{{ log_file }}"
+        line: "{{ lookup('pipe', 'date -Iseconds') }} - INFO - Starting UF restart task - Host: {{ inventory_hostname }} - Target IP: {{ target_ip }} - OS: {{ os_type }} - Correlation ID: {{ correlation_id | default('unknown') }} - Alert Time: {{ alert_time | default('unknown') }}"
+        create: yes
+        mode: "0644"
+      delegate_to: localhost
+
+    - name: Log system information
+      lineinfile:
+        path: "{{ log_file }}"
+        line: "{{ lookup('pipe', 'date -Iseconds') }} - INFO - System info - Ansible Version: {{ ansible_version.full }} - Python Version: {{ ansible_python_version }} - Correlation ID: {{ correlation_id | default('unknown') }}"
+      delegate_to: localhost
+
+    - name: Test network connectivity
+      wait_for:
+        host: "{{ target_ip }}"
+        port: 22
+        timeout: 10
+      register: connectivity_test
+      failed_when: false
+      ignore_errors: yes
+
+    - name: Log connectivity test result
+      lineinfile:
+        path: "{{ log_file }}"
+        line: "{{ lookup('pipe', 'date -Iseconds') }} - INFO - Network connectivity test - Host: {{ inventory_hostname }} - Target: {{ target_ip }}:22 - Status: {{ 'SUCCESS' if connectivity_test is succeeded else 'FAILED' }} - Correlation ID: {{ correlation_id | default('unknown') }}"
+      delegate_to: localhost
+
+    - name: Check SSH connectivity
+      command: echo "SSH connection successful"
+      register: ssh_test
+      failed_when: false
+      changed_when: false
+
+    - name: Log SSH test result with details
+      lineinfile:
+        path: "{{ log_file }}"
+        line: "{{ lookup('pipe', 'date -Iseconds') }} - INFO - SSH connectivity test - Host: {{ inventory_hostname }} - Result: {{ ssh_test.stdout | default('FAILED') }} - RC: {{ ssh_test.rc | default('unknown') }} - Connection: {{ ansible_connection | default('ssh') }} - Correlation ID: {{ correlation_id | default('unknown') }}"
+      delegate_to: localhost
+
+  tasks:
+    - name: Log service restart attempt
+      lineinfile:
+        path: "{{ log_file }}"
+        line: "{{ lookup('pipe', 'date -Iseconds') }} - INFO - Starting service restart - Host: {{ inventory_hostname }} - Service: {{ splunk_service_name }} - Max Retries: {{ max_retries }} - User: ansible (with sudo) - Correlation ID: {{ correlation_id | default('unknown') }}"
+      delegate_to: localhost
+
+    - name: Restart Splunk Universal Forwarder service
+      shell: "sudo /bin/systemctl restart {{ splunk_service_name }}"
+      register: restart_result
+      retries: "{{ max_retries }}"
+      delay: "{{ retry_delay }}"
+      until: restart_result.rc == 0
+      ignore_errors: yes
+
+    - name: Log detailed restart result
+      lineinfile:
+        path: "{{ log_file }}"
+        line: "{{ lookup('pipe', 'date -Iseconds') }} - INFO - Restart command result - Host: {{ inventory_hostname }} - Status: {{ 'SUCCESS' if restart_result.rc == 0 else 'FAILED' }} - RC: {{ restart_result.rc | default('unknown') }} - Attempts: {{ restart_result.attempts | default(1) }} - Correlation ID: {{ correlation_id | default('unknown') }}"
+      delegate_to: localhost
+
+    - name: Wait for service to stabilize after restart
+      wait_for:
+        timeout: 10
+      register: wait_result
+
+    - name: Log stabilization wait result
+      lineinfile:
+        path: "{{ log_file }}"
+        line: "{{ lookup('pipe', 'date -Iseconds') }} - INFO - Service stabilization wait - Host: {{ inventory_hostname }} - Duration: {{ wait_result.elapsed }}s - Timeout: 10s - Correlation ID: {{ correlation_id | default('unknown') }}"
+      delegate_to: localhost
+
+    - name: Verify service is running after restart
+      shell: "sudo /bin/systemctl is-active {{ splunk_service_name }}"
+      register: verify_result
+      failed_when: false
+      ignore_errors: yes
+
+    - name: Log detailed service verification
+      lineinfile:
+        path: "{{ log_file }}"
+        line: "{{ lookup('pipe', 'date -Iseconds') }} - INFO - Post-restart verification - Host: {{ inventory_hostname }} - Service: {{ splunk_service_name }} - Status: {{ verify_result.stdout | default('unknown') }} - RC: {{ verify_result.rc | default('unknown') }} - Correlation ID: {{ correlation_id | default('unknown') }}"
+      delegate_to: localhost
+
+    - name: Check Splunk process status
+      shell: "ps aux | grep -E '[s]plunk|[S]plunk' | head -5"
+      register: process_check
+      failed_when: false
+      ignore_errors: yes
+
+    - name: Log process status
+      lineinfile:
+        path: "{{ log_file }}"
+        line: "{{ lookup('pipe', 'date -Iseconds') }} - INFO - Process status check - Host: {{ inventory_hostname }} - Processes found: {{ process_check.stdout_lines | length }} - Correlation ID: {{ correlation_id | default('unknown') }}"
+      delegate_to: localhost
+
+    - name: Log successful restart
+      lineinfile:
+        path: "{{ log_file }}"
+        line: "{{ lookup('pipe', 'date -Iseconds') }} - SUCCESS - Successfully restarted Splunk Universal Forwarder on {{ inventory_hostname }} - Service Status: {{ verify_result.stdout | default('unknown') }} - Correlation ID: {{ correlation_id | default('unknown') }}"
+      delegate_to: localhost
+      when: restart_result.rc == 0 and verify_result.stdout == 'active'
+
+    - name: Log restart failure
+      lineinfile:
+        path: "{{ log_file }}"
+        line: "{{ lookup('pipe', 'date -Iseconds') }} - ERROR - Failed to restart Splunk Universal Forwarder on {{ inventory_hostname }} - Restart RC: {{ restart_result.rc | default('unknown') }} - Verify RC: {{ verify_result.rc | default('unknown') }} - Error: {{ restart_result.stderr | default('No error details') }} - Correlation ID: {{ correlation_id | default('unknown') }}"
+      delegate_to: localhost
+      when: restart_result.rc != 0 or verify_result.stdout != 'active'
+
+  post_tasks:
+    - name: Calculate task duration
+      set_fact:
+        task_duration: "{{ ((ansible_date_time.epoch | int) - (hostvars[inventory_hostname]['ansible_date_time']['epoch'] | int)) }}"
+      ignore_errors: yes
+
+    - name: Log final task status with metrics
+      lineinfile:
+        path: "{{ log_file }}"
+        line: "{{ lookup('pipe', 'date -Iseconds') }} - INFO - Task completion summary - Host: {{ inventory_hostname }} - Final Status: {{ 'SUCCESS' if (restart_result.rc == 0 and verify_result.stdout == 'active') else 'FAILED' }} - Duration: {{ task_duration | default('unknown') }}s - Correlation ID: {{ correlation_id | default('unknown') }}"
+      delegate_to: localhost
+
+    - name: Log performance metrics
+      lineinfile:
+        path: "{{ log_file }}"
+        line: "{{ lookup('pipe', 'date -Iseconds') }} - METRICS - Performance data - Host: {{ inventory_hostname }} - Restart attempts: {{ restart_result.attempts | default(1) }} - Wait time: {{ wait_result.elapsed | default(0) }}s - Process count: {{ process_check.stdout_lines | length | default(0) }} - Correlation ID: {{ correlation_id | default('unknown') }}"
+      delegate_to: localhost
+
+    - name: Log error details on failure
+      lineinfile:
+        path: "{{ log_file }}"
+        line: "{{ lookup('pipe', 'date -Iseconds') }} - ERROR - Failure details - Host: {{ inventory_hostname }} - Restart RC: {{ restart_result.rc | default('unknown') }} - Verify RC: {{ verify_result.rc | default('unknown') }} - Restart Error: {{ restart_result.stderr | default('No restart error') }} - Verify Status: {{ verify_result.stdout | default('No verify status') }} - Correlation ID: {{ correlation_id | default('unknown') }}"
+      delegate_to: localhost
+      when: restart_result.rc != 0 or verify_result.stdout != 'active'
+
+    - name: Final task completion log
+      lineinfile:
+        path: "{{ log_file }}"
+        line: "{{ lookup('pipe', 'date -Iseconds') }} - INFO - UF restart task completed - Host: {{ inventory_hostname }} - Target IP: {{ target_ip }} - Overall result: {{ 'SUCCESS' if (restart_result.rc == 0 and verify_result.stdout == 'active') else 'FAILED' }} - Correlation ID: {{ correlation_id | default('unknown') }}"
+      delegate_to: localhost

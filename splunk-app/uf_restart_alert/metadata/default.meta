@@ -1,0 +1,8 @@
+[]
+export = system
+
+[alert_actions]
+export = system
+
+[alerts]
+export = system

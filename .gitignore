@@ -1,0 +1,89 @@
+# Top-level .gitignore for Splunk UF automation project
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Editors/IDE
+.vscode/
+.idea/
+*.iml
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.pyo
+*.pyd
+*.pdb
+.build/
+build/
+dist/
+*.egg-info/
+.eggs/
+.venv/
+venv/
+env/
+ENV/
+pip-wheel-metadata/
+.pytest_cache/
+.coverage
+.coverage.*
+.cache/
+.mypy_cache/
+.ruff_cache/
+.pytype/
+.pyre/
+.ipynb_checkpoints
+
+# Environment files
+.env
+.env.*
+fastapi-server/.env
+fastapi-server/.env.*
+
+# Logs and temp
+*.log
+logs/
+tmp/
+temp/
+*.pid
+
+# Docker
+docker/.env
+docker/data/
+docker/logs/
+
+# Ansible
+*.retry
+
+# Terraform (note: keep .terraform.lock.hcl committed if present)
+.terraform/
+*.tfstate
+*.tfstate.*
+.terraform.lock.hcl
+terraform.lock.hcl
+crash.log
+crash.*.log
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+.terraformrc
+terraform.rc
+*.tfvars
+*.tfvars.json
+
+# Node (just in case)
+node_modules/
+
+# Splunk app local (user-specific)
+splunk-app/**/local/
+splunk-app/**/local.meta
+
+# Vim/Swap
+*.swp
+*.swo
+
+# Vagrant
+.vagrant

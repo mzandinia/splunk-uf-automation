@@ -1,0 +1,113 @@
+<form class="form-horizontal form-complex">
+  <div class="control-group">
+    <label class="control-label" for="uf_restart_fastapi_host"
+      >FastAPI Server Host</label
+    >
+    <div class="controls">
+      <input
+        type="text"
+        name="action.uf_restart.param.fastapi_host"
+        id="uf_restart_fastapi_host"
+        value="localhost"
+      />
+      <span class="help-block"
+        >IP address or hostname of the FastAPI server</span
+      >
+    </div>
+  </div>
+
+  <div class="control-group">
+    <label class="control-label" for="uf_restart_fastapi_port"
+      >FastAPI Server Port</label
+    >
+    <div class="controls">
+      <input
+        type="number"
+        name="action.uf_restart.param.fastapi_port"
+        id="uf_restart_fastapi_port"
+        value="8000"
+        min="1"
+        max="65535"
+      />
+      <span class="help-block"
+        >Port number of the FastAPI server (1-65535)</span
+      >
+    </div>
+  </div>
+
+  <div class="control-group">
+    <label class="control-label" for="uf_restart_fastapi_endpoint"
+      >API Endpoint</label
+    >
+    <div class="controls">
+      <input
+        type="text"
+        name="action.uf_restart.param.fastapi_endpoint"
+        id="uf_restart_fastapi_endpoint"
+        value="/restart-uf"
+      />
+      <span class="help-block">API endpoint path (e.g., /restart-uf)</span>
+    </div>
+  </div>
+
+  <div class="control-group">
+    <label class="control-label" for="uf_restart_use_ssl">Use SSL/TLS</label>
+    <div class="controls">
+      <label class="checkbox">
+        <input
+          type="checkbox"
+          name="action.uf_restart.param.use_ssl"
+          id="uf_restart_use_ssl"
+          value="1"
+        />
+        Enable HTTPS connection to FastAPI server
+      </label>
+    </div>
+  </div>
+
+  <div class="control-group">
+    <label class="control-label" for="uf_restart_timeout"
+      >Request Timeout (seconds)</label
+    >
+    <div class="controls">
+      <input
+        type="number"
+        name="action.uf_restart.param.timeout"
+        id="uf_restart_timeout"
+        value="30"
+        min="5"
+        max="300"
+      />
+      <span class="help-block"
+        >Maximum time to wait for response (5-300 seconds)</span
+      >
+    </div>
+  </div>
+
+  <div class="control-group">
+    <label class="control-label" for="uf_restart_retry_count"
+      >Retry Count</label
+    >
+    <div class="controls">
+      <input
+        type="number"
+        name="action.uf_restart.param.retry_count"
+        id="uf_restart_retry_count"
+        value="3"
+        min="0"
+        max="10"
+      />
+      <span class="help-block">Number of retry attempts on failure (0-10)</span>
+    </div>
+  </div>
+
+  <div class="control-group">
+    <div class="controls">
+      <p class="help-block">
+        <strong>Note:</strong> This alert action will send host information to
+        the FastAPI server, which will trigger an Ansible playbook to restart
+        the Universal Forwarder based on the OS type.
+      </p>
+    </div>
+  </div>
+</form>

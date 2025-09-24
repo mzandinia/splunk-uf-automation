@@ -1,0 +1,36 @@
+services:
+  uf-restart-api:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    container_name: splunk-uf-restart-api
+    ports:
+      - "7000:7000"
+    volumes:
+      # Mount playbooks directory for easy updates
+      - ../ansible-playbooks:/home/ansible/ansible/playbooks:ro
+      # Mount inventory directory for target hosts
+      - /home/ansible/ansible-inventory:/home/ansible/ansible/inventory
+      # Mount logs for persistence
+      - /home/ansible/server-logs/fastapi:/home/ansible/server-logs/fastapi
+      - /home/ansible/server-logs/ansible:/home/ansible/server-logs/ansible
+    environment:
+      - ANSIBLE_PLAYBOOKS_DIR=/home/ansible/ansible/playbooks
+      - ANSIBLE_INVENTORY_DIR=/home/ansible/ansible/inventory
+      - FASTAPI_LOG_DIR=/home/ansible/server-logs/fastapi
+      - ANSIBLE_LOG_DIR=/home/ansible/server-logs/ansible
+      - MAX_CONCURRENT_TASKS=5
+      - PYTHONPATH=/app
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:7000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    networks:
+      - uf-restart-network
+
+networks:
+  uf-restart-network:
+    driver: bridge
