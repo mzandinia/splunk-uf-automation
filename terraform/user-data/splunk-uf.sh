@@ -57,10 +57,26 @@ echo "ansible:${ansible_password}" | chpasswd
 echo "Set password for ansible user"
 
 # Enable SSH password authentication
+echo "Enabling SSH password authentication"
 sed -i 's/#PasswordAuthentication yes/PasswordAuthentication yes/' /etc/ssh/sshd_config
 sed -i 's/#PasswordAuthentication no/PasswordAuthentication yes/' /etc/ssh/sshd_config
 sed -i 's/PasswordAuthentication no/PasswordAuthentication yes/' /etc/ssh/sshd_config
-systemctl restart sshd 2> /dev/null || systemctl restart sshd 2> /dev/null || true
+
+# Delete everything in /etc/ssh/sshd_config.d
+echo "Deleting everything in /etc/ssh/sshd_config.d"
+rm -f /etc/ssh/sshd_config/* 2> /dev/null || true
+echo "Successfully deleted everything in /etc/ssh/sshd_config.d"
+
+# Enable SSH password authentication in .d conf folder
+echo "Enabling SSH password authentication in .d conf folder"
+cat > /etc/ssh/sshd_config.d/01-password-authentication.conf << EOF
+PasswordAuthentication yes
+EOF
+echo "Successfully enabled SSH password authentication in .d conf folder"
+
+# Restart SSH
+echo "Restarting SSH"
+systemctl restart ssh 2> /dev/null || systemctl restart sshd 2> /dev/null || true
 echo "Enabled SSH password authentication"
 
 # Configure Sudoers for Ansible

@@ -109,6 +109,57 @@ variable "splunk_admin_password" {
 }
 
 
+# Security Group Ports
+variable "ssh_port" {
+  description = "SSH port number"
+  type        = number
+  default     = 22
+}
+
+variable "fastapi_port" {
+  description = "FastAPI HTTP port number"
+  type        = number
+  default     = 7000
+}
+
+variable "splunk_web_port" {
+  description = "Splunk Web UI port number"
+  type        = number
+  default     = 8000
+}
+
+variable "splunk_management_port" {
+  description = "Splunk Management port number"
+  type        = number
+  default     = 8089
+}
+
+variable "splunk_receiving_port" {
+  description = "Splunk Receiving port number"
+  type        = number
+  default     = 9997
+}
+
+# Network Configuration
+variable "all_cidr" {
+  description = "CIDR block for all traffic (0.0.0.0/0)"
+  type        = string
+  default     = "0.0.0.0/0"
+}
+
+variable "default_route_cidr" {
+  description = "CIDR block for default route"
+  type        = string
+  default     = "0.0.0.0/0"
+}
+
+# Storage Configuration
+variable "ebs_volume_type" {
+  description = "Type of EBS volumes"
+  type        = string
+  default     = "gp3"
+}
+
 # Tags
 variable "common_tags" {
   description = "Common tags to apply to all resources"

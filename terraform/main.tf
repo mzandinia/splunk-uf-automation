@@ -57,7 +57,7 @@ resource "aws_route_table" "public" {
   vpc_id = aws_vpc.main.id
 
   route {
-    cidr_block = "0.0.0.0/0"
+    cidr_block = var.default_route_cidr
     gateway_id = aws_internet_gateway.main.id
   }
 
@@ -79,18 +79,18 @@ resource "aws_security_group" "fastapi" {
 
   # SSH access from everywhere
   ingress {
-    from_port   = 22
-    to_port     = 22
+    from_port   = var.ssh_port
+    to_port     = var.ssh_port
     protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]
+    cidr_blocks = [var.all_cidr]
   }
 
   # FastAPI HTTP API from everywhere
   ingress {
-    from_port   = 8000
-    to_port     = 8000
+    from_port   = var.fastapi_port
+    to_port     = var.fastapi_port
     protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]
+    cidr_blocks = [var.all_cidr]
   }
 
   # All outbound traffic
@@ -98,7 +98,7 @@ resource "aws_security_group" "fastapi" {
     from_port   = 0
     to_port     = 0
     protocol    = "-1"
-    cidr_blocks = ["0.0.0.0/0"]
+    cidr_blocks = [var.all_cidr]
   }
 
   tags = {
@@ -112,31 +112,31 @@ resource "aws_security_group" "splunk_enterprise" {
 
   # SSH access from everywhere
   ingress {
-    from_port   = 22
-    to_port     = 22
+    from_port   = var.ssh_port
+    to_port     = var.ssh_port
     protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]
+    cidr_blocks = [var.all_cidr]
   }
 
   # Splunk Web UI from everywhere
   ingress {
-    from_port   = 8000
-    to_port     = 8000
+    from_port   = var.splunk_web_port
+    to_port     = var.splunk_web_port
     protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]
+    cidr_blocks = [var.all_cidr]
   }
 
   # Splunk Management and Receiving within VPC
   ingress {
-    from_port   = 8089
-    to_port     = 8089
+    from_port   = var.splunk_management_port
+    to_port     = var.splunk_management_port
     protocol    = "tcp"
     cidr_blocks = [var.vpc_cidr]
   }
 
   ingress {
-    from_port   = 9997
-    to_port     = 9997
+    from_port   = var.splunk_receiving_port
+    to_port     = var.splunk_receiving_port
     protocol    = "tcp"
     cidr_blocks = [var.vpc_cidr]
   }
@@ -146,7 +146,7 @@ resource "aws_security_group" "splunk_enterprise" {
     from_port   = 0
     to_port     = 0
     protocol    = "-1"
-    cidr_blocks = ["0.0.0.0/0"]
+    cidr_blocks = [var.all_cidr]
   }
 
   tags = {
@@ -160,16 +160,16 @@ resource "aws_security_group" "splunk_uf" {
 
   # SSH access from everywhere
   ingress {
-    from_port   = 22
-    to_port     = 22
+    from_port   = var.ssh_port
+    to_port     = var.ssh_port
     protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]
+    cidr_blocks = [var.all_cidr]
   }
 
   # Splunk Management within VPC
   ingress {
-    from_port   = 8089
-    to_port     = 8089
+    from_port   = var.splunk_management_port
+    to_port     = var.splunk_management_port
     protocol    = "tcp"
     cidr_blocks = [var.vpc_cidr]
   }
@@ -179,16 +179,13 @@ resource "aws_security_group" "splunk_uf" {
     from_port   = 0
     to_port     = 0
     protocol    = "-1"
-    cidr_blocks = ["0.0.0.0/0"]
+    cidr_blocks = [var.all_cidr]
   }
 
   tags = {
     Name = "${var.project_name}-splunk-uf-sg"
   }
 }
-
-# Note: SSH key pair removed - using password authentication instead
-# TODO: Add SSH key pair for production deployments
 
 # IAM Role for EC2 instances
 resource "aws_iam_role" "ec2_role" {
@@ -278,7 +275,7 @@ locals {
 
 # FastAPI Server Instance
 resource "aws_instance" "fastapi" {
-  ami                    = "ami-0360c520857e3138f"
+  ami                    = var.fastapi_ami_id
   instance_type          = var.fastapi_instance_type
   subnet_id              = aws_subnet.public.id
   vpc_security_group_ids = [aws_security_group.fastapi.id]
@@ -287,17 +284,8 @@ resource "aws_instance" "fastapi" {
 
   user_data = local.fastapi_user_data
 
-  # Spot instance configuration for cost optimization
-  instance_market_options {
-    market_type = "spot"
-    spot_options {
-      spot_instance_type             = "persistent"
-      instance_interruption_behavior = "stop"
-    }
-  }
-
   root_block_device {
-    volume_type           = "gp3"
+    volume_type           = var.ebs_volume_type
     volume_size           = var.ebs_volume_size
     encrypted             = true
     delete_on_termination = true
@@ -320,7 +308,7 @@ resource "aws_instance" "fastapi" {
 
 # Splunk Enterprise Instance
 resource "aws_instance" "splunk_enterprise" {
-  ami                    = "ami-0360c520857e3138f"
+  ami                    = var.splunk_enterprise_ami_id
   instance_type          = var.splunk_enterprise_instance_type
   subnet_id              = aws_subnet.public.id
   vpc_security_group_ids = [aws_security_group.splunk_enterprise.id]
@@ -329,17 +317,8 @@ resource "aws_instance" "splunk_enterprise" {
 
   user_data = local.splunk_enterprise_user_data
 
-  # Spot instance configuration for cost optimization
-  instance_market_options {
-    market_type = "spot"
-    spot_options {
-      spot_instance_type             = "persistent"
-      instance_interruption_behavior = "stop"
-    }
-  }
-
   root_block_device {
-    volume_type           = "gp3"
+    volume_type           = var.ebs_volume_type
     volume_size           = var.ebs_volume_size
     encrypted             = true
     delete_on_termination = true
@@ -362,7 +341,7 @@ resource "aws_instance" "splunk_enterprise" {
 
 # Splunk UF Instance
 resource "aws_instance" "splunk_uf" {
-  ami                    = "ami-0360c520857e3138f"
+  ami                    = var.splunk_uf_ami_id
   instance_type          = var.splunk_uf_instance_type
   subnet_id              = aws_subnet.public.id
   vpc_security_group_ids = [aws_security_group.splunk_uf.id]
@@ -371,17 +350,8 @@ resource "aws_instance" "splunk_uf" {
 
   user_data = local.splunk_uf_user_data
 
-  # Spot instance configuration for cost optimization
-  instance_market_options {
-    market_type = "spot"
-    spot_options {
-      spot_instance_type             = "persistent"
-      instance_interruption_behavior = "stop"
-    }
-  }
-
   root_block_device {
-    volume_type           = "gp3"
+    volume_type           = var.ebs_volume_type
     volume_size           = var.ebs_volume_size
     encrypted             = true
     delete_on_termination = true
